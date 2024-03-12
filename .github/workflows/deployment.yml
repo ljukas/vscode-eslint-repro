@@ -1,0 +1,195 @@
+name: deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**/package.json'
+  workflow_dispatch:
+    inputs:
+      binary:
+        description: 'Build binary'
+        required: false
+        type: boolean
+        default: false
+      ota:
+        description: 'Build OTA'
+        required: false
+        type: boolean
+        default: false
+      bff:
+        description: 'Build BFF'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      build-binary: ${{ inputs.binary || steps.app-check.outputs.type == 'major' }}
+      build-ota: ${{ inputs.ota || steps.app-check.outputs.type == 'patch' || steps.app-check.outputs.type == 'minor' }}
+      build-bff: ${{ inputs.bff || steps.bff-check.outputs.changed == 'true' }}
+      app-version: ${{ steps.app-version.outputs.current-version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: app check
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        id: app-check
+        uses: EndBug/version-check@v2
+        with:
+          file-name: apps/native/package.json
+
+      - name: BFF check
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        id: bff-check
+        uses: EndBug/version-check@v2
+        with:
+          file-name: apps/gateway/package.json
+
+      - name: Get app version
+        id: app-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+        with:
+          path: apps/native
+
+  ota-build:
+    name: ota-build
+    needs: precheck
+    if: ${{ needs.precheck.outputs.build-ota == 'true' }}
+    uses: ./.github/workflows/ota-build.yml
+    with:
+      message: 'version-${{ needs.precheck.outputs.app-version }}'
+    secrets: inherit
+
+  bff-build:
+    name: bff-build
+    needs: precheck
+    if: ${{ needs.precheck.outputs.build-bff == 'true' }}
+    uses: ./.github/workflows/bff-build.yml
+    with:
+      tag_version: true
+    secrets: inherit
+
+  staging-app-binary:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.build-binary == 'true' }}
+    name: Staging binary
+    uses: ./.github/workflows/app-binary.yml
+    with:
+      platform: all
+      profile: staging
+      environment: binary-staging
+      message: 'staging'
+      cancel-in-progress: true
+    secrets: inherit
+
+  app-binary:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.build-binary == 'true' }}
+    name: Prod binary
+    uses: ./.github/workflows/app-binary.yml
+    with:
+      platform: all
+      profile: production
+      environment: binary-prod
+      message: 'production'
+      cancel-in-progress: true
+    secrets: inherit
+
+  bff-staging:
+    name: bff-staging
+    needs: [ota-build, bff-build, staging-app-binary, app-binary]
+    if: ${{ !cancelled() && 
+        needs.bff-build.result == 'success' &&
+        (needs.ota-build.result == 'success' || needs.ota-build.result == 'skipped') &&
+        (needs.staging-app-binary.result == 'success' || needs.staging-app-binary.result == 'skipped') &&
+        (needs.app-binary.result == 'success' || needs.app-binary.result == 'skipped') }}
+    uses: ./.github/workflows/bff-staging-deploy.yml
+    secrets: inherit
+
+  ota-staging:
+    name: ota-staging
+    needs: [precheck, ota-build, bff-staging]
+    if: ${{ !cancelled() && 
+      needs.ota-build.result == 'success' && 
+      needs.precheck.result == 'success' && 
+      (needs.bff-staging.result == 'success' || needs.bff-staging.result == 'skipped') }}
+    uses: ./.github/workflows/ota-deploy.yml
+    with:
+      channel: staging
+      branch: version-${{ needs.precheck.outputs.app-version }}
+    secrets: inherit
+
+  bff-prod:
+    name: bff-prod
+    if: ${{ !cancelled() && needs.bff-staging.result == 'success' }}
+    needs: bff-staging
+    uses: ./.github/workflows/bff-prod-deploy.yml
+    secrets: inherit
+
+  ota-prod:
+    name: ota-prod
+    needs: [ota-staging, bff-prod, precheck]
+    if: ${{ !cancelled() && 
+      needs.ota-staging.result == 'success' && 
+      needs.precheck.result == 'success' && 
+      (needs.bff-prod.result == 'success' || needs.bff-prod.result == 'skipped') }}
+    uses: ./.github/workflows/ota-deploy.yml
+    with:
+      channel: prod
+      branch: version-${{ needs.precheck.outputs.app-version }}
+    secrets: inherit
+
+  submit-binary:
+    needs: [app-binary, bff-prod]
+    if: ${{ !cancelled() && 
+        needs.app-binary.result == 'success' &&
+        (needs.bff-prod.result == 'success' || needs.bff-prod.result == 'skipped') }}
+    name: Submit binary to Stores
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Prep Google Service Account key
+        run: |
+          mkdir -p ./apps/native/credentials
+
+      - name: Setup Google Service Account key
+        uses: jsdaniell/create-json@v1.2.3
+        with:
+          name: 'android-key.json'
+          dir: './apps/native/credentials'
+          json: ${{ secrets.GOOGLE_CLOUD_SERVICE_ACCOUNT_KEY }}
+
+      - name: Submit with EAS
+        working-directory: ./apps/native
+        run: eas submit --platform all --profile production --latest --non-interactive

@@ -1,0 +1,74 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.bak
+
+# Dependency directories
+node_modules/
+
+# dotenv environment variables file
+.env
+.env.test
+dist/
+build/
+
+# yarn berry
+.yarn/*
+.pnp.*
+!.yarn/cache
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+
+nm-apps/native/.yarn* 
+
+
+# Expo
+!.expo/
+**/.expo/*
+!**/.expo/types
+*.ipa
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+android-key.json
+build.txt
+android.txt
+ios.txt
+expo-env.d.ts
+
+
+# workflows
+build.txt
+
+# macOS
+.DS_Store
+
+# next.js
+/.next/
+/out/
+
+.eslintcache
+
+apps/native/android
+apps/native/ios
+
+.turbo
+
+
+# webstorm
+.idea/usage.statistics.xml
+.idea/shelf
+.idea/workspace.xml
+
+output.txt

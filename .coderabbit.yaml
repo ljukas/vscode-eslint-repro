@@ -1,0 +1,22 @@
+language: 'en'
+reviews:
+  poem: false
+  high_level_summary: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - release/*
+  review_status: true
+  path_filters:
+    - "!**/generated/**"
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/_generated/**"
+    - "!.yarn/**"
+  path_instructions:
+    - path: 'apps/native/**/*.tsx'
+      instructions: "Review this code in the context of React Native using the Expo eco-system. Ensure that the code is as performative as possible."
+chat:
+  auto_reply: true

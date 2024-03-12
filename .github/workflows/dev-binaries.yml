@@ -1,0 +1,77 @@
+name: dev-binaries
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - apps/native/package.json
+
+env:
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+
+jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      build-binary: ${{ steps.app-check.outputs.changed == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Current dependencies
+        id: cur-dep
+        uses: notiz-dev/github-action-json-property@release
+        with:
+          path: apps/native/package.json
+          prop_path: 'dependencies'
+
+      - name: Checkout old package.json
+        run: |
+          git checkout HEAD~1 apps/native/package.json
+
+      - name: Old dependencies
+        id: old-dep
+        uses: notiz-dev/github-action-json-property@release
+        with:
+          path: apps/native/package.json
+          prop_path: 'dependencies'
+
+      - name: Hash Current Depenencies
+        id: hash-cur-dep
+        run: echo "hash=$(echo ${{ steps.cur-dep.outputs.propStr }} | shasum -a 256 | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Hash Old Depenencies
+        id: hash-old-dep
+        run: echo "hash=$(echo ${{ steps.old-dep.outputs.propStr }} | shasum -a 256 | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+
+      - name: Compare dependencies
+        id: app-check
+        run: |
+          if [ ${{ steps.hash-cur-dep.outputs.hash }} != ${{ steps.hash-old-dep.outputs.hash }} ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+  app-binaries:
+    needs: precheck
+    if: ${{ needs.precheck.outputs.build-binary == 'true' }}
+    strategy:
+      matrix:
+        profile:
+          [
+            { profile: simulator, platform: ios, environment: binary-dev },
+            { profile: development, platform: all, environment: binary-dev },
+          ]
+    name: ${{ matrix.profile.profile }}
+    uses: ./.github/workflows/app-binary.yml
+    with:
+      environment: ${{ matrix.profile.environment }}
+      platform: ${{ matrix.profile.platform }}
+      profile: ${{ matrix.profile.profile }}
+      message: 'develop'
+    secrets: inherit

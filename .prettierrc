@@ -1,0 +1,35 @@
+{
+  "trailingComma": "all",
+  "singleQuote": true,
+  "endOfLine": "auto",
+  "plugins": [
+    "prettier-plugin-tailwindcss",
+    "@trivago/prettier-plugin-sort-imports"
+  ],
+  "importOrder": [
+    "./wdyr",
+    "reflect-metadata",
+    "dotenv/config",
+    "^(react|react-native)$",
+    "<THIRD_PARTY_MODULES>",
+    "^@/(.*)$",
+    "^[./]"
+  ],
+  "importOrderSeparation": true,
+  "importOrderParserPlugins": [
+    "typescript",
+    "jsx",
+    "decorators-legacy"
+  ],
+  "tailwindFunctions": [
+    "clsx"
+  ],
+  "overrides": [
+    {
+      "files": "./apps/native/**",
+      "options": {
+        "tailwindConfig": "./apps/native/tailwind.config.js"
+      }
+    }
+  ]
+}

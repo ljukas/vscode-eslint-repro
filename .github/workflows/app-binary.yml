@@ -1,0 +1,109 @@
+name: app-binary
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'The platform/platforms to build for'
+        required: true
+        type: choice
+        options:
+          - ios
+          - android
+          - all
+      profile:
+        description: 'The EAS profile to use'
+        required: true
+        type: choice
+        options:
+          - simulator
+          - development
+          - staging
+          - production
+      environment:
+        description: 'The environment to build for'
+        required: true
+        type: choice
+        options:
+          - binary-dev
+          - binary-staging
+          - binary-prod
+      cancel-in-progress:
+        description: 'Should in-progress build be cancelled?'
+        required: false
+        type: boolean
+        default: true
+      message:
+        description: 'The expo build message'
+        required: false
+        type: string
+  workflow_call:
+    inputs:
+      platform:
+        description: 'The platform/platforms to build for'
+        required: true
+        type: string
+      profile:
+        description: 'The EAS profile to use'
+        required: true
+        type: string
+      environment:
+        description: 'The environment to build for'
+        required: true
+        type: string
+      cancel-in-progress:
+        description: 'Should in-progress build be cancelled?'
+        required: false
+        type: boolean
+        default: true
+      message:
+        description: 'The expo build message'
+        required: false
+        type: string
+
+jobs:
+  cancel:
+    strategy:
+      matrix:
+        status: [in-progress, in-queue]
+    name: ${{ matrix.status }}
+    uses: ./.github/workflows/cancel-eas-builds.yml
+    if: ${{ inputs.cancel-in-progress == 'true' }}
+    with:
+      status: ${{ matrix.status }}
+      profile: ${{ inputs.profile }}
+    secrets: inherit
+
+  build:
+    needs: [cancel]
+    if: ${{ !cancelled() }}
+    name: EAS Build
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Build with EAS
+        working-directory: ./apps/native
+        run: eas build --platform ${{ inputs.platform }} --non-interactive --profile ${{ inputs.profile }} --message '${{ inputs.message }}'

@@ -1,0 +1,19 @@
+{
+  "cSpell.words": [
+    "Boverket",
+    "Checkmark",
+    "macrobond",
+    "riksbank",
+    "trpc",
+    "Valueguard",
+    "Waitlist"
+  ],
+  "search.exclude": {
+    "**/.yarn": true,
+    "**/.pnp.*": true
+  },
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "eslint.experimental.useFlatConfig": true,
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "eslint.workingDirectories": ["./packages/*", "./apps/*"]
+}

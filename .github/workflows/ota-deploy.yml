@@ -1,0 +1,61 @@
+name: ota-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel to deploy to'
+        required: true
+        type: choice
+        options:
+          - staging
+          - prod
+      branch:
+        description: 'Branch to deploy from'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      channel:
+        description: 'Channel to deploy to'
+        required: true
+        type: string
+      branch:
+        description: 'Branch to deploy from'
+        required: true
+        type: string
+
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    environment: ota-${{ inputs.channel }}
+    concurrency:
+      group: app-ota-deploy-${{ inputs.channel }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Swap branch for channel
+        working-directory: ./apps/native
+        run: |
+          eas channel:edit ${{ inputs.channel }} --branch ${{ inputs.branch }}
+

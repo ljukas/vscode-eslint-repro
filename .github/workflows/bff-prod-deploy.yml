@@ -1,0 +1,26 @@
+name: bff-prod-deploy
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    environment: bff-prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure prod environment
+        uses: azure/login@v2
+        with:
+          creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_PROD_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}'
+
+      - name: Swap slots
+        uses: azure/CLI@v2
+        with:
+          inlineScript: |
+            az webapp deployment slot swap -s ${{ vars.AZURE_WEBAPP_SLOT_NAME}} -n ${{ vars.AZURE_WEBAPP_NAME }} -g ${{ vars.AZURE_WEBAPP_RESOURCE_GROUP }}

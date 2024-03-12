@@ -1,0 +1,15 @@
+# Ignore generated files in diffs
+.pnp.cjs linguist-generated
+.yarn/cache/** linguist-generated
+yarn.lock linguist-generated
+apps/**/.yarn/cache/** linguist-generated
+apps/**/generated/** linguist-generated
+apps/**/_generated/** linguist-generated
+packages/**/build/** linguist-generated
+
+
+# Merge our versions of files when merge conflicts arise
+yarn.lock merge=ours
+
+# Don't even try to merge these files
+yarn.lock -diff

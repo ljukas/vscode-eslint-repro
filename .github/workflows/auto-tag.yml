@@ -1,0 +1,41 @@
+name: auto tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/**/package.json'
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: app check
+        id: app-check
+        uses: EndBug/version-check@v2
+        with:
+          file-name: apps/native/package.json
+
+      - name: BFF check
+        id: bff-check
+        uses: EndBug/version-check@v2
+        with:
+          file-name: apps/gateway/package.json
+
+      - name: Create app Tag
+        if: ${{ steps.app-check.outputs.changed == 'true' }}
+        run: |
+          git tag native-v${{ steps.app-check.outputs.version }}
+          git push origin native-v${{ steps.app-check.outputs.version }}
+
+      - name: Create BFF Tag
+        if: ${{ steps.bff-check.outputs.changed == 'true' }}
+        run: |
+          git tag gateway-v${{ steps.bff-check.outputs.version }}
+          git push origin gateway-v${{ steps.bff-check.outputs.version }}

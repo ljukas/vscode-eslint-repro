@@ -1,0 +1,23 @@
+BFF:
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/gateway/**/*
+
+App:
+  - changed-files:
+      - any-glob-to-any-file: 'apps/native/**/*'
+
+Hotfix:
+  - head-branch: ['hotfix/*']
+
+'@bovra-mobile/changeset-changelog':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/changeset-changelog/**/*'
+
+'@bovra-mobile/action-post-changelogs':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/action-post-changelogs/**/*'
+
+'@bovra-mobile/common':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/common/**/*'

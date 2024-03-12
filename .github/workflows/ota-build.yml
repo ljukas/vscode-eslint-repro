@@ -1,0 +1,73 @@
+name: ota-build
+
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: 'The message to use for the update'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      message:
+        description: 'The message to use for the update'
+        required: true
+        type: string
+
+jobs:
+  build-update:
+    name: build update
+    runs-on: linux-big
+    env:
+      SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+    concurrency:
+      group: app-ota-build
+      cancel-in-progress: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: get-npm-version
+        id: package-version
+        uses: martinbeentjes/npm-get-version-action@v1.3.1
+        with:
+          path: apps/native
+
+      - name: Create update branch
+        working-directory: ./apps/native
+        continue-on-error: false
+        run: |
+          eas branch:create version-${{ steps.package-version.outputs.current-version }}
+
+      - name: Publish Update
+        working-directory: ./apps/native
+        run: |
+          eas update --branch version-${{ steps.package-version.outputs.current-version }} --message "${{ inputs.message }}"
+        env:
+          NODE_ENV: 'production'
+
+      - name: Upload to sentry
+        working-directory: ./apps/native
+        run: |
+          npx sentry-expo-upload-sourcemaps dist

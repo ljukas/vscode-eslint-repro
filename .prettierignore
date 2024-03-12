@@ -1,0 +1,13 @@
+**/*.lock
+
+.husky/*
+.yarn/*
+
+**/*generated*
+**/graphql/**
+**/build/**
+
+**/.expo/**
+README.md
+**/CHANGELOG.md
+.prettierrc

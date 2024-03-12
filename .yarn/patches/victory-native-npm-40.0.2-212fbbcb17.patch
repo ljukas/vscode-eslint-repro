@@ -1,0 +1,40 @@
+diff --git a/src/hooks/useAnimatedPath.ts b/src/hooks/useAnimatedPath.ts
+index 53bf26eb9d02ec43a4373b186338d9e317cf0e7c..fd11c44b9b20d1c0ca8831427106d739e90911d7 100644
+--- a/src/hooks/useAnimatedPath.ts
++++ b/src/hooks/useAnimatedPath.ts
+@@ -9,7 +9,6 @@ import {
+   type WithTimingConfig,
+   type WithDecayConfig,
+ } from "react-native-reanimated";
+-import { usePrevious } from "../utils/usePrevious";
+ 
+ export type PathAnimationConfig =
+   | ({ type: "timing" } & WithTimingConfig)
+@@ -21,7 +20,6 @@ export const useAnimatedPath = (
+   animConfig: PathAnimationConfig = { type: "timing", duration: 300 },
+ ) => {
+   const t = useSharedValue(0);
+-  const prevPath = usePrevious(path);
+ 
+   React.useEffect(() => {
+     const { type, ...rest } = animConfig;
+@@ -30,10 +28,18 @@ export const useAnimatedPath = (
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [path, t]);
+ 
+-  return useDerivedValue<SkPath>(() => {
++  const [prevPath, setPrevPath] = React.useState(path)
++
++  const currentPath = useDerivedValue<SkPath>(() => {
+     if (t.value !== 1 && path.isInterpolatable(prevPath)) {
+       return path.interpolate(prevPath, t.value) || path;
+     }
+     return path;
+   });
++
++  React.useEffect(() => {
++    setPrevPath(currentPath.value)
++  }, [currentPath, path])
++
++  return currentPath
+ };

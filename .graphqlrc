@@ -1,0 +1,6 @@
+schema: 'apps/gateway/src/**/*.types.gql'
+documents: 'apps/native/src/**/*.{tsx,ts,gql}'
+extensions:
+  diff:
+    baseSchema: 'https://api.bovra.se/mobile-gateway'
+

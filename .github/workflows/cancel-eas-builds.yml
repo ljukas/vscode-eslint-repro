@@ -1,0 +1,63 @@
+name: cancel-eas-builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      status:
+        description: 'The status of builds to cancel'
+        required: true
+        type: choice
+        options:
+          - in-queue
+          - in-progress
+      profile:
+        description: 'The EAS build profile to cancel'
+        required: true
+        type: choice
+        options:
+          - simulator
+          - development
+          - test
+          - production
+  workflow_call:
+    inputs:
+      status:
+        description: 'The status of builds to cancel'
+        required: true
+        type: string
+      profile:
+        description: 'The EAS build profile to cancel'
+        required: true
+        type: string
+
+jobs:
+  update:
+    name: EAS Cancel
+    runs-on: ubuntu-latest
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM_ID: ${{ secrets.TURBO_TEAM_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Setup Expo
+        uses: expo/expo-github-action@v8
+        with:
+          expo-version: latest
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Cancel builds
+        working-directory: ./apps/native
+        run: bash ../../scripts/cancel-eas-builds.sh ${{ inputs.status }} ${{ inputs.profile }}

@@ -1,0 +1,60 @@
+name: Post Changelogs to Slack
+
+on:
+  push:
+    branches:
+      - never
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify CHANGELOG.md has changed
+        uses: tj-actions/changed-files@v42
+        id: changed-files
+        with:
+          files: |
+            apps/**/CHANGELOG.md
+            packages/**/CHANGELOG.md
+          write_output_files: true
+
+      - name: Fail if no files are changed
+        uses: actions/github-script@v7
+        if: ${{ steps.changed-files.outputs.any_changed == 'false' }}
+        with:
+          script: |
+            core.setFailed('Changesets not consumed, no CHANGELOG.md files changed')
+
+      - name: Combine CHANGELOGs
+        uses: actions/github-script@v7
+        id: changelog
+        with:
+          script: |
+            const paths = "${{steps.changed-files.outputs.all_changed_files}}".split(' ')
+            const script = require('./scripts/build-changelog.js')
+            return script(paths)
+          result-encoding: string
+
+      - name: Setup Node.js
+        if: steps.changed-files.outputs.any_changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: yarn
+
+      - name: Install Dependencies
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: yarn install --immutable
+
+      - name: Post to slack
+        if: steps.changed-files.outputs.any_changed == 'true'
+        id: slack
+        uses: ./packages/action-post-changelogs
+        with:
+          slack-token: ${{ secrets.SLACK_CHANGELOGS_TOKEN }}
+          slack-channel-id: ${{ secrets.SLACK_CHANGELOGS_CHANNEL_ID }}
+          pr-body: ${{ github.event.pull_request.body }}
+          pr-url: ${{ github.event.pull_request.html_url }}

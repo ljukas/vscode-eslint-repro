@@ -1,0 +1,13 @@
+diff --git a/android/src/main/java/expo/modules/adapters/branch/BranchReactActivityLifecycleListener.kt b/android/src/main/java/expo/modules/adapters/branch/BranchReactActivityLifecycleListener.kt
+index 36ef72f8b9a0548c9397b22b9069e81584ae99e1..ec062953b46e32f9717616db9b9b924b8dfe81df 100644
+--- a/android/src/main/java/expo/modules/adapters/branch/BranchReactActivityLifecycleListener.kt
++++ b/android/src/main/java/expo/modules/adapters/branch/BranchReactActivityLifecycleListener.kt
+@@ -9,7 +9,7 @@ import io.branch.rnbranch.RNBranchModule
+ 
+ 
+ class BranchReactActivityLifecycleListener(activityContext: Context) : ReactActivityLifecycleListener {
+-    override fun onCreate(activity: Activity, savedInstanceState: Bundle?) {
++    override fun onResume(activity: Activity) {
+         RNBranchModule.initSession(activity.getIntent().getData(), activity);
+     }
+ 
